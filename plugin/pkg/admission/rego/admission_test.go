@@ -19,6 +19,10 @@ func (c *mockClient) Query(doc string, globals map[string]interface{}) (interfac
 	return nil, nil
 }
 
+func (c *mockClient) Patch(op operation, path string, obj interface{}) error {
+	return nil
+}
+
 func TestAdmit(t *testing.T) {
 	c := controller{
 		factory: &mockFactory{},

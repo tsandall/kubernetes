@@ -1,19 +1,31 @@
 package rego
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/golang/glog"
 )
 
 type factory interface {
 	New() client
 }
 
+type operation string
+
+const (
+	add     operation = "add"
+	remove  operation = "remove"
+	replace operation = "replace"
+)
+
 type client interface {
 	Query(doc string, globals map[string]interface{}) (interface{}, error)
+	Patch(op operation, path string, obj interface{}) error
 }
 
 type undefined struct{}
@@ -72,4 +84,49 @@ func (c *httpClient) Query(doc string, globals map[string]interface{}) (interfac
 	}
 
 	return nil, fmt.Errorf("bad response: %v", resp.StatusCode)
+}
+
+func (c *httpClient) Patch(op operation, path string, obj interface{}) error {
+
+	patch := map[string]interface{}{
+		"path": "/",
+		"op":   op,
+	}
+
+	if obj != nil {
+		patch["value"] = obj
+	}
+
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.Encode([]interface{}{
+		patch,
+	})
+
+	client := http.DefaultClient
+
+	p := fmt.Sprintf("%s/data%s", c.baseURL, path)
+	req, err := http.NewRequest("PATCH", p, &buf)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	glog.Infof("Patch %v %v: response: %v", op, p, resp.StatusCode)
+
+	if resp.StatusCode != 204 {
+		decoder := json.NewDecoder(resp.Body)
+		body := map[string]interface{}{}
+		msg := fmt.Sprintf("patch failed (code: %v)", resp.StatusCode)
+		if err := decoder.Decode(&body); err == nil {
+			msg = fmt.Sprintf("%s: %s", msg, body["Message"])
+		}
+		return fmt.Errorf(msg)
+	}
+
+	return nil
 }
