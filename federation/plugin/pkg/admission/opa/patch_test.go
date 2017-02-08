@@ -1,4 +1,4 @@
-package rego
+package opa
 
 import "testing"
 import "reflect"

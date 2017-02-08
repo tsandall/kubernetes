@@ -1,11 +1,12 @@
-package rego
+package opa
 
 import "reflect"
 import "strings"
 import "k8s.io/kubernetes/pkg/runtime"
 
-// applyAnnotations updates the object's metadata/annotations. If the object
-// does not contain an annotations field, no change is performed.
+// applyAnnotations updates the object's metadata.annotations. If the object
+// contains existing annotations, overlapping keys are replaced with the value
+// from the annotations parameter.
 func applyAnnotations(obj runtime.Object, annotations map[string]string) {
 	val := reflect.Indirect(reflect.ValueOf(obj))
 	annotationsFld, ok := getAnnotationsField(val)
@@ -27,21 +28,6 @@ func applyAnnotations(obj runtime.Object, annotations map[string]string) {
 	}
 
 	annotationsFld.Set(reflect.ValueOf(annotations))
-}
-
-func getAnnotations(obj runtime.Object) map[string]string {
-	val := reflect.Indirect(reflect.ValueOf(obj))
-	annotationsFld, ok := getAnnotationsField(val)
-	if !ok {
-		return nil
-	}
-
-	orig := annotationsFld.Interface()
-	if orig == nil {
-		return nil
-	}
-
-	return orig.(map[string]string)
 }
 
 func getAnnotationsField(val reflect.Value) (reflect.Value, bool) {
